@@ -8,14 +8,27 @@ import java.util.Random;
 
 public class Game {
 
+  public int getWins() {
+    return wins;
+  }
+
+  public int getLosses() {
+    return losses;
+  }
+
   private State state = State.COME_OUT;
   private int point;
   private Random rng;
   private List<Roll> rolls;
+  private int wins;
+  private int losses;
+  private final Object lock = new Object();
 
   public Game(Random rng) {
     this.rng = rng;
     rolls = new LinkedList<>();
+    wins = 0;
+    losses = 0;
   }
 
   public static class Roll {
@@ -42,7 +55,7 @@ public class Game {
     }
   }
 
-  public State rollDice() {
+  private State rollDice() {
     int[] dice = {
         rng.nextInt(6) + 1,
         rng.nextInt(6) + 1
@@ -53,13 +66,29 @@ public class Game {
       point = total;
     }
     this.state = state;
-    rolls.add(new Roll(dice, state));
+    synchronized (lock) {
+      rolls.add(new Roll(dice, state));
+    }
     return state;
   }
 
+  public void reset(){
+    state = State.COME_OUT;
+    synchronized (lock) {
+      rolls.clear();
+    }
+    point = 0;
+  }
+
   public State play() {
+    reset();
     while (state != State.WIN && state != State.LOSS) {
       rollDice();
+    }
+    if(state == State.WIN){
+      wins++;
+    }else{
+      losses++;
     }
     return state;
   }
@@ -69,7 +98,9 @@ public class Game {
   }
 
   public List<Roll> getRolls() {
-    return new LinkedList<>(rolls);
+    synchronized (lock) {
+      return new LinkedList<>(rolls);
+    }
   }
 
   public enum State {//enums nested in another class are always static
